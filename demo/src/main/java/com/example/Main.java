@@ -6,12 +6,13 @@ public class Main {
 
     final static AWS aws = AWS.getInstance();
     public static void main(String[] args) {// args = [inFilePath, outFilePath, tasksPerWorker, -t (terminate, optional)]
-        try {
+        /*try {
             setup();
             //createEC2();
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
+        System.out.println("Hi");
     }
 
     //Create Buckets, Create Queues, Upload JARs to S3
