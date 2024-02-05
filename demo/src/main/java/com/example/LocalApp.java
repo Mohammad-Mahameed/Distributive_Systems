@@ -2,7 +2,7 @@ package com.example;
 
 
 
-public class Main {
+public class LocalApp {
 
     final static AWS aws = AWS.getInstance();
     public static void main(String[] args) {// args = [inFilePath, outFilePath, tasksPerWorker, -t (terminate, optional)]
