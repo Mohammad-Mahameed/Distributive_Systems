@@ -13,6 +13,7 @@ public class Main {
             e.printStackTrace();
         }*/
         System.out.println("Hi");
+        System.out.println("Hi2");
     }
 
     //Create Buckets, Create Queues, Upload JARs to S3
