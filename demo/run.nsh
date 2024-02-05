@@ -1,0 +1,1 @@
+mvn exec:java -Dexec.mainClass="com.example.Main" -Dexec.cleanupDaemonThreads=false -Dexec.args=""
