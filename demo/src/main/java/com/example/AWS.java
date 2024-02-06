@@ -12,9 +12,13 @@ import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import java.util.Base64;
 
 public class AWS {
-    private final S3Client s3;
-    private final SqsClient sqs;
-    private final Ec2Client ec2;
+    /*
+     * TODO:
+     * Switch to private
+     */
+    public final S3Client s3;
+    public final SqsClient sqs;
+    public final Ec2Client ec2;
 
     public static String ami = "ami-00e95a9222311e8ed";
 
@@ -56,6 +60,70 @@ public class AWS {
     }
 
     // EC2
+    public String createManagerIfNotExists(String script) {
+        String tagName = "amj450_Manager";
+        //Check if a Manager node already exists
+        String nextToken = null;
+
+        do {
+            DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(nextToken)
+                    .build();
+            DescribeInstancesResponse response = ec2.describeInstances(request);
+            //if no reservations are ever made, then no EC2 instances ever existed...
+            for (Reservation reservation : response.reservations()) {
+                for (Instance instance : reservation.instances()) {
+                    if (instance.tags().size() != 0 && 
+                        (instance.state().name().toString().equalsIgnoreCase("running") || instance.state().name().toString().equalsIgnoreCase("pending")) &&
+                        instance.tags().get(0).value().equals(tagName)) {
+                        System.out.println("Manager already running!");
+                        return null;
+                    }
+                }
+            }
+            nextToken = response.nextToken();
+        } while (nextToken != null);
+
+        //Create a Manager node
+
+        Ec2Client ec2 = Ec2Client.builder().region(region2).build();
+        RunInstancesRequest runRequest = (RunInstancesRequest) RunInstancesRequest.builder()
+            .instanceType(InstanceType.M4_LARGE)
+            .imageId(ami)
+            .maxCount(1)
+            .minCount(1)
+            .keyName("vockey")
+            .iamInstanceProfile(IamInstanceProfileSpecification.builder().name("LabInstanceProfile").build())
+            .userData(Base64.getEncoder().encodeToString((script).getBytes()))
+            .build();
+
+        RunInstancesResponse response = ec2.runInstances(runRequest);
+
+        String instanceId = response.instances().get(0).instanceId();
+    
+        software.amazon.awssdk.services.ec2.model.Tag tag = Tag.builder()
+                .key("Name")
+                .value(tagName)
+                .build();
+    
+        CreateTagsRequest tagRequest = (CreateTagsRequest) CreateTagsRequest.builder()
+                .resources(instanceId)
+                .tags(tag)
+                .build();
+    
+        try {
+            ec2.createTags(tagRequest);
+            System.out.printf(
+                    "[DEBUG] Successfully started EC2 instance %s based on AMI %s\n",
+                    instanceId, ami);
+    
+        } catch (Ec2Exception e) {
+            System.err.println("[ERROR] " + e.getMessage());
+            System.exit(1);
+        }
+
+        return instanceId;
+    }
+
     public String createEC2(String script, String tagName, int numberOfInstances) {
         Ec2Client ec2 = Ec2Client.builder().region(region2).build();
         RunInstancesRequest runRequest = (RunInstancesRequest) RunInstancesRequest.builder()
