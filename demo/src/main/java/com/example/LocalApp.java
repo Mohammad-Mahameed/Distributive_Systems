@@ -33,10 +33,18 @@ public class LocalApp {
         AtomicBoolean terminate = new AtomicBoolean(false);
         parseArgs(args, inputFilesPaths, outputFilesPaths, n, terminate);
 
+        //Init Manager
         String ec2Script = "#!/bin/bash\n" +
                             "echo Hello World\n";
 
         aws.createManagerIfNotExists(ec2Script);
+
+        //Create a S3 bucket and upload the input files to it
+        String bucketName = "amj450-bucket";
+        aws.createBucketIfNotExists(bucketName);
+        aws.uploadInputFilesToS3(inputFilesPaths, bucketName);
+
+
 
         DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(null).build();
         System.out.println("request " + request.toString());

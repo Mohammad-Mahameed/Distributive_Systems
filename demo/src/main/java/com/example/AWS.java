@@ -1,5 +1,9 @@
 package com.example;
 
+import java.util.LinkedList;
+
+import software.amazon.awssdk.core.sync.RequestBody;
+import java.nio.file.Paths;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Tag;
@@ -9,6 +13,7 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 
+import java.nio.file.Paths;
 import java.util.Base64;
 
 public class AWS {
@@ -57,6 +62,11 @@ public class AWS {
         } catch (S3Exception e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    public void uploadInputFilesToS3(LinkedList<String> inputFilesPaths, String bucketName){
+        for(String inputFilePath: inputFilesPaths)
+            s3.putObject(PutObjectRequest.builder().key(inputFilePath).bucket(bucketName).build(), RequestBody.fromFile(Paths.get(inputFilePath)));
     }
 
     // EC2
