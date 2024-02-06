@@ -36,7 +36,6 @@ public class LocalApp {
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
                             "echo Hello World\n";
-
         aws.createManagerIfNotExists(ec2Script);
 
         //Create a S3 bucket and upload the input files to it
@@ -44,14 +43,19 @@ public class LocalApp {
         aws.createBucketIfNotExists(bucketName);
         aws.uploadInputFilesToS3(inputFilesPaths, bucketName);
 
+        //Create an SQS and pass the input files to the manager
+        aws.createSqsQueue("inputFilesSQS");
+        String queueURL = aws.getQueueURL("inputFilesSQS");
+        aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
 
 
-        DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(null).build();
+
+        /*DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(null).build();
         System.out.println("request " + request.toString());
 
         DescribeInstancesResponse response = aws.ec2.describeInstances(request);
         System.out.println("reservations size " + response.reservations().size());
-        System.out.println("response " + response.toString());
+        System.out.println("response " + response.toString());*/
     }
 
     

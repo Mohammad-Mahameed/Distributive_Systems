@@ -2,6 +2,13 @@ package com.example;
 
 import java.util.LinkedList;
 
+
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+
 import software.amazon.awssdk.core.sync.RequestBody;
 import java.nio.file.Paths;
 import software.amazon.awssdk.regions.Region;
@@ -174,10 +181,59 @@ public class AWS {
         return instanceId;
     }
 
+
+    //SQS
+
     public void createSqsQueue(String queueName) {
         CreateQueueRequest createQueueRequest = CreateQueueRequest.builder()
                 .queueName(queueName)
                 .build();
         sqs.createQueue(createQueueRequest);
     }
+
+    public String getQueueURL(String queueName){
+        GetQueueUrlRequest getQueueUrlRequest = GetQueueUrlRequest.builder()
+                .queueName(queueName)
+                .build();
+        GetQueueUrlResponse getQueueUrlResponse = sqs.getQueueUrl(getQueueUrlRequest);
+
+        String queueURL = getQueueUrlResponse.queueUrl();
+        return queueURL;
+    }
+
+    public LinkedList<String> getInputFilesPathsFromBucket(LinkedList<String> inputFilesKeys, String bucketName){
+        LinkedList<String> inputFilesPaths = new LinkedList<String>();
+
+        for(String inputFileKey: inputFilesKeys){
+            String filePath;
+
+            HeadObjectRequest headRequest = HeadObjectRequest.builder()
+            .bucket(bucketName)
+            .key(inputFileKey)
+            .build();
+            
+            System.out.println("headRequest = " + headRequest.toString());
+            HeadObjectResponse headResponse = s3.headObject(headRequest);
+            System.out.println("headResponse = " + headResponse.toString());
+            filePath = headResponse.metadata().get("file-path");
+            System.err.println("filePath = " + filePath);
+            inputFilesPaths.add(filePath);
+        }
+
+        return inputFilesPaths;
+    }
+
+    public void sendMessagesToManager(LinkedList<String> inputFilesKeys, String queueURL, String bucketName){
+        LinkedList<String> inputFilesPaths = getInputFilesPathsFromBucket(inputFilesKeys, bucketName);
+        System.err.println("Input Files Paths: " + inputFilesPaths.toString());
+        for(String inputFilePath: inputFilesPaths){
+            SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
+                .queueUrl(queueURL)
+                .messageBody(inputFilePath)
+                .build();
+
+            sqs.sendMessage(sendMessageRequest);
+        }
+    }
+
 }
