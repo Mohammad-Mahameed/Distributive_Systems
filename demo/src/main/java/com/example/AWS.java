@@ -1,7 +1,7 @@
 package com.example;
 
 import java.util.LinkedList;
-
+import java.util.HashMap;
 
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -72,8 +72,16 @@ public class AWS {
     }
 
     public void uploadInputFilesToS3(LinkedList<String> inputFilesPaths, String bucketName){
-        for(String inputFilePath: inputFilesPaths)
-            s3.putObject(PutObjectRequest.builder().key(inputFilePath).bucket(bucketName).build(), RequestBody.fromFile(Paths.get(inputFilePath)));
+        for(String inputFilePath: inputFilesPaths){
+            HashMap<String, String> metaData = new HashMap();
+            metaData.put("file-path", inputFilePath);
+            s3.putObject(PutObjectRequest.builder()
+                        .key(inputFilePath)
+                        .bucket(bucketName)
+                        .metadata(metaData)
+                        .build(), 
+                        RequestBody.fromFile(Paths.get(inputFilePath)));
+        }
     }
 
     // EC2
