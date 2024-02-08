@@ -47,7 +47,8 @@ public class LocalApp {
         aws.createSqsQueue("inputFilesSQS");
         String queueURL = aws.getQueueURL("inputFilesSQS");
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
-
+        
+        //TODO: points 4-6
 
 
         /*DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(null).build();
