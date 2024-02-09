@@ -1,5 +1,16 @@
 package com.example;
 
+import java.util.LinkedList;
+import java.util.HashMap;
+
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+
+import software.amazon.awssdk.core.sync.RequestBody;
+import java.nio.file.Paths;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Tag;
@@ -9,12 +20,17 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 
+import java.nio.file.Paths;
 import java.util.Base64;
 
 public class AWS {
-    private final S3Client s3;
-    private final SqsClient sqs;
-    private final Ec2Client ec2;
+    /*
+     * TODO:
+     * Switch to private
+     */
+    public final S3Client s3;
+    public final SqsClient sqs;
+    public final Ec2Client ec2;
 
     public static String ami = "ami-00e95a9222311e8ed";
 
@@ -55,7 +71,84 @@ public class AWS {
         }
     }
 
+    public void uploadInputFilesToS3(LinkedList<String> inputFilesPaths, String bucketName){
+        for(String inputFilePath: inputFilesPaths){
+            HashMap<String, String> metaData = new HashMap();
+            metaData.put("file-path", inputFilePath);
+            s3.putObject(PutObjectRequest.builder()
+                        .key(inputFilePath)
+                        .bucket(bucketName)
+                        .metadata(metaData)
+                        .build(), 
+                        RequestBody.fromFile(Paths.get(inputFilePath)));
+        }
+    }
+
     // EC2
+    public String createManagerIfNotExists(String script) {
+        String tagName = "amj450_Manager";
+        //Check if a Manager node already exists
+        String nextToken = null;
+
+        do {
+            DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(nextToken)
+                    .build();
+            DescribeInstancesResponse response = ec2.describeInstances(request);
+            //if no reservations are ever made, then no EC2 instances ever existed...
+            for (Reservation reservation : response.reservations()) {
+                for (Instance instance : reservation.instances()) {
+                    if (instance.tags().size() != 0 && 
+                        (instance.state().name().toString().equalsIgnoreCase("running") || instance.state().name().toString().equalsIgnoreCase("pending")) &&
+                        instance.tags().get(0).value().equals(tagName)) {
+                        System.out.println("Manager already running!");
+                        return null;
+                    }
+                }
+            }
+            nextToken = response.nextToken();
+        } while (nextToken != null);
+
+        //Create a Manager node
+
+        Ec2Client ec2 = Ec2Client.builder().region(region2).build();
+        RunInstancesRequest runRequest = (RunInstancesRequest) RunInstancesRequest.builder()
+            .instanceType(InstanceType.M4_LARGE)
+            .imageId(ami)
+            .maxCount(1)
+            .minCount(1)
+            .keyName("vockey")
+            .iamInstanceProfile(IamInstanceProfileSpecification.builder().name("LabInstanceProfile").build())
+            .userData(Base64.getEncoder().encodeToString((script).getBytes()))
+            .build();
+
+        RunInstancesResponse response = ec2.runInstances(runRequest);
+
+        String instanceId = response.instances().get(0).instanceId();
+    
+        software.amazon.awssdk.services.ec2.model.Tag tag = Tag.builder()
+                .key("Name")
+                .value(tagName)
+                .build();
+    
+        CreateTagsRequest tagRequest = (CreateTagsRequest) CreateTagsRequest.builder()
+                .resources(instanceId)
+                .tags(tag)
+                .build();
+    
+        try {
+            ec2.createTags(tagRequest);
+            System.out.printf(
+                    "[DEBUG] Successfully started EC2 instance %s based on AMI %s\n",
+                    instanceId, ami);
+    
+        } catch (Ec2Exception e) {
+            System.err.println("[ERROR] " + e.getMessage());
+            System.exit(1);
+        }
+
+        return instanceId;
+    }
+
     public String createEC2(String script, String tagName, int numberOfInstances) {
         Ec2Client ec2 = Ec2Client.builder().region(region2).build();
         RunInstancesRequest runRequest = (RunInstancesRequest) RunInstancesRequest.builder()
@@ -96,10 +189,130 @@ public class AWS {
         return instanceId;
     }
 
+
+    //SQS
+
     public void createSqsQueue(String queueName) {
         CreateQueueRequest createQueueRequest = CreateQueueRequest.builder()
                 .queueName(queueName)
                 .build();
         sqs.createQueue(createQueueRequest);
     }
+
+    public String getQueueURL(String queueName){
+        GetQueueUrlRequest getQueueUrlRequest = GetQueueUrlRequest.builder()
+                .queueName(queueName)
+                .build();
+        GetQueueUrlResponse getQueueUrlResponse = sqs.getQueueUrl(getQueueUrlRequest);
+
+        String queueURL = getQueueUrlResponse.queueUrl();
+        return queueURL;
+    }
+
+    public LinkedList<String> getInputFilesPathsFromBucket(LinkedList<String> inputFilesKeys, String bucketName){
+        LinkedList<String> inputFilesPaths = new LinkedList<String>();
+
+        for(String inputFileKey: inputFilesKeys){
+            String filePath;
+
+            HeadObjectRequest headRequest = HeadObjectRequest.builder()
+            .bucket(bucketName)
+            .key(inputFileKey)
+            .build();
+            
+            System.out.println("headRequest = " + headRequest.toString());
+            HeadObjectResponse headResponse = s3.headObject(headRequest);
+            System.out.println("headResponse = " + headResponse.toString());
+            filePath = headResponse.metadata().get("file-path");
+            System.err.println("filePath = " + filePath);
+            inputFilesPaths.add(filePath);
+        }
+
+        return inputFilesPaths;
+    }
+
+    public void sendMessagesToManager(LinkedList<String> inputFilesKeys, String queueURL, String bucketName){
+        LinkedList<String> inputFilesPaths = getInputFilesPathsFromBucket(inputFilesKeys, bucketName);
+        System.err.println("Input Files Paths: " + inputFilesPaths.toString());
+        for(String inputFilePath: inputFilesPaths){
+            SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
+                .queueUrl(queueURL)
+                .messageBody(inputFilePath)
+                .build();
+
+            sqs.sendMessage(sendMessageRequest);
+        }
+    }
+
+    public Message getMessageFromManagerToWorker(String queueName){
+       // Get the queue URL by name
+       GetQueueUrlRequest getQueueUrlRequest = GetQueueUrlRequest.builder()
+               .queueName(queueName)
+               .build();
+
+       GetQueueUrlResponse getQueueUrlResponse = sqs.getQueueUrl(getQueueUrlRequest);
+       String queueUrl = getQueueUrlResponse.queueUrl();
+
+        // Create a request to receive a single message from the queue
+        ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
+                .queueUrl(queueUrl)
+                .maxNumberOfMessages(1)  // Receive a single message
+                .build();
+
+        // Receive messages from the queue
+        ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveMessageRequest);
+
+        if(receiveMessageResponse.hasMessages())
+            return receiveMessageResponse.message.get(0);
+        
+        return null;
+
+        /* 
+        // Process the received message
+        for (Message message : receiveMessageResponse.messages()) {
+            // Print the message body
+            System.out.println("Message body: " + message.body());
+
+            // Process the message (e.g., perform some work)
+            // In this example, we are simulating the processing time by sleeping for 5 seconds
+            try {
+                Thread.sleep(5000);  // Simulate processing time
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            // Once processing is complete, delete the message from the queue
+            // Note: If processing fails or takes longer than the visibility timeout,
+            // the message will become visible in the queue again after the visibility timeout expires,
+            // and another client can handle it
+            sqsClient.deleteMessage(deleteMessageRequest -> deleteMessageRequest.queueUrl(queueUrl)
+                    .receiptHandle(message.receiptHandle()));
+            */
+    }
+
+    public void downloadFileFromS3(String objectKey, String bucketName){
+
+        // Create a file to save the downloaded object
+        Path filePath = Paths.get(objectKey + " downloaded-file.txt");
+
+        try {
+            // Specify the request to get the object
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build();
+
+            // Download the object and save it to the file
+            GetObjectResponse getObjectResponse = s3.getObject(getObjectRequest,
+                    ResponseTransformer.toFile(filePath));
+
+            // Print the download status
+            System.out.println("File downloaded successfully: " + filePath.toAbsolutePath());
+        } catch (NoSuchKeyException e) {
+            System.err.println("The specified object does not exist in the bucket.");
+        } catch (IOException e) {
+            System.err.println("Error downloading the file: " + e.getMessage());
+        }
+    }
+
 }
