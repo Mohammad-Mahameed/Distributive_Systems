@@ -8,6 +8,9 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.Message;
 
 import software.amazon.awssdk.core.sync.RequestBody;
 import java.nio.file.Paths;
@@ -243,5 +246,23 @@ public class AWS {
             sqs.sendMessage(sendMessageRequest);
         }
     }
+
+    public Message getMessageFromSqs(String queueName){
+        String queueUrl = getQueueURL(queueName);
+ 
+         // Create a request to receive a single message from the queue
+         ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
+                 .queueUrl(queueUrl)
+                 .maxNumberOfMessages(1)  // Receive a single message
+                 .build();
+ 
+         // Receive messages from the queue
+         ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveMessageRequest);
+ 
+         if(receiveMessageResponse.hasMessages())
+             return receiveMessageResponse.messages().get(0);
+         
+         return null;
+     }
 
 }
