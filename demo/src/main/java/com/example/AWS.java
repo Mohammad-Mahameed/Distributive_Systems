@@ -5,8 +5,8 @@ import java.util.HashMap;
 
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.*;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 
@@ -22,6 +22,20 @@ import software.amazon.awssdk.services.ec2.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import java.util.Base64;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
+
+import software.amazon.awssdk.annotations.SdkPublicApi;
+import software.amazon.awssdk.core.io.SdkFilterInputStream;
+import software.amazon.awssdk.http.Abortable;
+import software.amazon.awssdk.http.AbortableInputStream;
+import software.amazon.awssdk.utils.Validate;
 
 public class AWS {
     /*
@@ -255,7 +269,7 @@ public class AWS {
  
          // Receive messages from the queue
          ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveMessageRequest);
- 
+        System.out.println("im in getMessageFromSQS");
          if(receiveMessageResponse.hasMessages())
              return receiveMessageResponse.messages().get(0);
          
@@ -270,33 +284,30 @@ public class AWS {
         sqs.sendMessage(sendRequest);
     }
 
-    public void downloadFileFromS3(String s3Url, String localFilePath){
+    public void downloadFileFromS3(String bucketName, String objectKey, String localFilePath) {
         try {
-            URI uri = new URI(s3Url);
-            String bucketName = uri.getHost();
-            String objectKey = uri.getPath().substring(1); // Remove the leading slash
-
+            System.out.println("key=" + objectKey + " bucket=" + bucketName);
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(objectKey)
                     .build();
-
-            ResponseBytes<?> responseBytes = s3.getObjectAsBytes(getObjectRequest);
-
-            // Save the object to a file
+            System.out.println(getObjectRequest.toString());
+            // Download the object
+            ResponseInputStream responseInputStream = s3.getObject(getObjectRequest);
+            System.out.println(responseInputStream.toString());
+            // Save the object to a local file
             FileOutputStream fos = new FileOutputStream(localFilePath);
-            fos.write(responseBytes.asByteArray());
+            responseInputStream.transferTo(fos);
+
+            // Close streams
+            responseInputStream.close();
             fos.close();
+
             System.out.println("File downloaded successfully to: " + localFilePath);
 
-        } catch (URISyntaxException e) {
-            System.err.println("Invalid S3 URL format: " + e.getMessage());
-        } catch (S3Exception e) {
-            System.err.println(e.awsErrorDetails().errorMessage());
-            System.exit(1);
-        } catch (SdkException | IOException e) {
-            System.err.println(e.getMessage());
-            System.exit(1);
+        } catch (S3Exception | IOException e) {
+            System.err.println("Error downloading file from S3: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

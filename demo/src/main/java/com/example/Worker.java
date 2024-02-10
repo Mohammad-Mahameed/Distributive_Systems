@@ -30,15 +30,20 @@ public class Worker {
                 termminated.set(true);
             }
             else{
-                String s3Url = message.body();
+                String objectKey = message.body();
+                System.out.println(objectKey);
                 String localFilePath = "path_to_save_file_locally"; // Specify the local file path to save the downloaded file
-                aws.downloadFileFromS3(s3Url, localFilePath);
+                String bucketName = "amj450-new-bucket";
+                aws.downloadFileFromS3(bucketName, objectKey, localFilePath);
                 List<Book> books = parseFile(localFilePath);
                 allReviewsHandle(books);
                 String htmlFileName = localFilePath + ".html";
                 makeHtmlSite(books, localFilePath, htmlFileName);
                 aws.uploadOutputFileToS3(htmlFileName, "worker-s3");
                 aws.deleteMessageFromSQS("ManagerToWorkers", message);
+                String sqsName = "WorkerToManager";
+                aws.createSqsQueue(sqsName);
+                aws.sendMessageToSqs(aws.getQueueURL(sqsName), htmlFileName);
             }
             
         }
@@ -56,6 +61,7 @@ public class Worker {
     }
 
     public static List<Book> parseFile(String localFilePath){
+        System.out.println("hi");
         ObjectMapper objectMapper = new ObjectMapper();
         List<Book> books = new LinkedList<>();
 
