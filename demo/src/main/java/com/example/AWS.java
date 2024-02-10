@@ -244,50 +244,30 @@ public class AWS {
         }
     }
 
-    public Message getMessageFromManagerToWorker(String queueName){
-       // Get the queue URL by name
-       GetQueueUrlRequest getQueueUrlRequest = GetQueueUrlRequest.builder()
-               .queueName(queueName)
-               .build();
-
-       GetQueueUrlResponse getQueueUrlResponse = sqs.getQueueUrl(getQueueUrlRequest);
-       String queueUrl = getQueueUrlResponse.queueUrl();
-
-        // Create a request to receive a single message from the queue
-        ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
-                .queueUrl(queueUrl)
-                .maxNumberOfMessages(1)  // Receive a single message
+    public Message getMessageFromSqs(String queueName){
+        String queueUrl = getQueueURL(queueName);
+ 
+         // Create a request to receive a single message from the queue
+         ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
+                 .queueUrl(queueUrl)
+                 .maxNumberOfMessages(1)  // Receive a single message
+                 .build();
+ 
+         // Receive messages from the queue
+         ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveMessageRequest);
+ 
+         if(receiveMessageResponse.hasMessages())
+             return receiveMessageResponse.messages().get(0);
+         
+         return null;
+     }
+ 
+    public void sendMessageToSqs(String queueURL, String messageBody){
+        SendMessageRequest sendRequest = SendMessageRequest.builder()
+                .queueUrl(queueURL)
+                .messageBody(messageBody)
                 .build();
-
-        // Receive messages from the queue
-        ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveMessageRequest);
-
-        if(receiveMessageResponse.hasMessages())
-            return receiveMessageResponse.messages().get(0);
-        
-        return null;
-
-        /* 
-        // Process the received message
-        for (Message message : receiveMessageResponse.messages()) {
-            // Print the message body
-            System.out.println("Message body: " + message.body());
-
-            // Process the message (e.g., perform some work)
-            // In this example, we are simulating the processing time by sleeping for 5 seconds
-            try {
-                Thread.sleep(5000);  // Simulate processing time
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-            // Once processing is complete, delete the message from the queue
-            // Note: If processing fails or takes longer than the visibility timeout,
-            // the message will become visible in the queue again after the visibility timeout expires,
-            // and another client can handle it
-            sqsClient.deleteMessage(deleteMessageRequest -> deleteMessageRequest.queueUrl(queueUrl)
-                    .receiptHandle(message.receiptHandle()));
-            */
+        sqs.sendMessage(sendRequest);
     }
 
     public void downloadFileFromS3(String s3Url, String localFilePath){
@@ -318,6 +298,26 @@ public class AWS {
             System.err.println(e.getMessage());
             System.exit(1);
         }
+    }
+
+    public void uploadOutputFileToS3(String outputFilePath, String bucketName){
+            HashMap<String, String> metaData = new HashMap();
+            metaData.put("file-path", outputFilePath);
+            s3.putObject(PutObjectRequest.builder()
+                        .key(outputFilePath)
+                        .bucket(bucketName)
+                        .metadata(metaData)
+                        .build(), 
+                        RequestBody.fromFile(Paths.get(outputFilePath)));
+        
+    }
+
+    public void deleteMessageFromSQS(String bucketName, Message message){
+        DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
+        .queueUrl(getQueueURL(bucketName))
+        .receiptHandle(message.receiptHandle())
+        .build();
+        sqs.deleteMessage(deleteRequest);
     }
 
 }

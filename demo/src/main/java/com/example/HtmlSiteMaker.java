@@ -12,21 +12,21 @@ public class HtmlSiteMaker {
                             "<body>\n";
     }
 
-    //<p><a href="https://in.bgu.ac.il/Pages/default.aspx" style="color:#FF0000;">review.title</a> hi</p>
+
     public void addLine(Review review){
         String isSarcasm = "";
         if(review.getSarcasm())
             isSarcasm = "This is Sarcasm";
         else
             isSarcasm = "This is not a Sarcasm";
-        String line = "<p><a href=\"" + 
+        String line = "<p><b><a href=\"" + 
                         review.getLink() + "\" style=\"color:" + 
                         review.getHtmlColor().getHexCode() + ";\">" +
-                        review.getReviewTitle() + "</a>" +
-                        " - Sarcasm Detector: (Rating=" + review.getRating() + ", Sentiment=" + 
+                        review.getReviewTitle() + "</a></b>" +
+                        "<b> - Sarcasm Detector:</b> (Rating=" + review.getRating() + ", Sentiment=" + 
                         review.getSentiment() + ") SO " + 
                         isSarcasm + " " +
-                        "- Entity List: " + review.getEntityString() +
+                        "<b>- Entity List:</b> " + review.getEntityString() +
                         "</p>\n";
         this.htmlContent = htmlContent + line;
     }

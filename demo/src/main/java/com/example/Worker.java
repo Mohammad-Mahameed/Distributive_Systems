@@ -24,24 +24,27 @@ public class Worker {
 
     public static void main(String[] args) {
         AtomicBoolean termminated = new AtomicBoolean(false);
-        /*while(termminated.get() == false){
-            System.out.print("ksmk");
-            Message message = aws.getMessageFromManagerToWorker("ManagerToWorkers");
+        while(termminated.get() == false){
+            Message message = aws.getMessageFromSqs("ManagerToWorkers");
             if(message.body() == "TERMINATE!"){
-                //termminated.set(true);
+                termminated.set(true);
             }
             else{
-                System.out.print("hi");
                 String s3Url = message.body();
                 String localFilePath = "path_to_save_file_locally"; // Specify the local file path to save the downloaded file
                 aws.downloadFileFromS3(s3Url, localFilePath);
                 List<Book> books = parseFile(localFilePath);
-
+                allReviewsHandle(books);
+                String htmlFileName = localFilePath + ".html";
+                makeHtmlSite(books, localFilePath, htmlFileName);
+                aws.uploadOutputFileToS3(htmlFileName, "worker-s3");
+                aws.deleteMessageFromSQS("ManagerToWorkers", message);
             }
             
         }
-        */
-
+        
+        
+        /*
         String localFilePath = "testInput.txt";
 
         List<Book> books = parseFile(localFilePath);
@@ -49,6 +52,7 @@ public class Worker {
         allReviewsHandle(books);
         String htmlFileName = localFilePath + ".html";
         makeHtmlSite(books, localFilePath, htmlFileName);
+        */
     }
 
     public static List<Book> parseFile(String localFilePath){
