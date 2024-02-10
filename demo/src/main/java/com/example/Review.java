@@ -28,6 +28,7 @@ public class Review {
     private HtmlColor htmlColor;
     private Boolean sarcasm;
     private List<String> entity;
+    private int sentiment;
 
     // Getters and setters
     public String getId() {
@@ -98,7 +99,7 @@ public class Review {
         this.sarcasm = sarcasm;
     }
 
-    public Boolean gerSarcasm(){
+    public Boolean getSarcasm(){
         return this.sarcasm;
     }
 
@@ -108,5 +109,29 @@ public class Review {
 
     public List<String> getEntity(){
         return this.entity;
+    }
+
+    public String getEntityString(){
+        if(this.entity == null)
+            return "[]";
+        String res = "[";
+        for(String eString : this.entity){
+            res = res + eString + ", ";
+        }
+
+        if(res.length() <= 3){
+            return "[]";
+        }
+        res = res.substring(0, res.length()-2);
+        res = res + "]";
+        return res;
+    }
+
+    public void setSentiment(int sentiment){
+        this.sentiment = sentiment;
+    }
+
+    public int getSentiment(){
+        return this.sentiment;
     }
 }

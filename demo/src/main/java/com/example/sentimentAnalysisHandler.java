@@ -37,6 +37,8 @@ public class sentimentAnalysisHandler {
         }
         public static void analyse(Review review){ 
             int result = sentimentAnalysisHandler.findSentiment(review.getReviewText());
+
+            review.setSentiment(result);
             if(result == review.getRating())
                 review.setSarcasm(false);
             else

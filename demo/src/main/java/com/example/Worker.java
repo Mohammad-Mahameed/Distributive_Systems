@@ -10,8 +10,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.services.sqs.model.*;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 
 public class Worker {
 
@@ -40,10 +42,25 @@ public class Worker {
         }
         */
 
-        String localFilePath = "input2.txt";
+        String localFilePath = "testInput.txt";
+
         List<Book> books = parseFile(localFilePath);
+
         allReviewsHandle(books);
 
+        HtmlSiteMaker siteMaker = new HtmlSiteMaker(localFilePath);
+        Book test = books.get(0);
+        for(Review review : test.getReviews()){
+            siteMaker.addLine(review);
+        }
+        siteMaker.finishSite();
+        
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("sample.html"))) {
+            writer.write(siteMaker.getHtmlContent());
+            System.out.println("HTML file created successfully.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static List<Book> parseFile(String localFilePath){
@@ -85,8 +102,7 @@ public class Worker {
             for(Review review : book.getReviews()){
                 sentimentAnalysisHandler.analyse(review);
                 List<String> entityList = namedEntityRecognitionHandler.getEntities(review.getReviewText());
-                System.out.println(review.getReviewText() + " : " + review.getHtmlColor().getName() + " : " + review.gerSarcasm());
-                System.out.println(entityList.toString());
+                review.setEntity(entityList);
             }
         }
     }
