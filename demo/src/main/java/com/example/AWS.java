@@ -1,7 +1,9 @@
 package com.example;
 
-import java.util.LinkedList;
-import java.util.HashMap;
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.jar.*;
 
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -53,8 +55,6 @@ public class AWS {
         return instance;
     }
 
-    public String bucketName = "first-bucket-creation-test";
-
 
     // S3
     public void createBucketIfNotExists(String bucketName) {
@@ -86,6 +86,56 @@ public class AWS {
                         .build(), 
                         RequestBody.fromFile(Paths.get(inputFilePath)));
         }
+    }
+
+    private static void addFilesToJar(File directory, JarOutputStream jos) throws IOException {
+        // Get a list of files and directories in the current directory
+        File[] files = directory.listFiles();
+
+        // Iterate over the files
+        for (File file : files) {
+            String entryName = file.getPath().replace("\\", "/"); // Use forward slash for entry name
+            JarEntry jarEntry = new JarEntry(entryName);
+            jos.putNextEntry(jarEntry);
+
+            // Write the file contents to the JAR
+            FileInputStream fis = new FileInputStream(file);
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                jos.write(buffer, 0, bytesRead);
+            }
+            fis.close();
+            jos.closeEntry();
+        }
+    }
+
+    public void uploadJarPackageToS3(String jarBucketName, String jarName){
+        String cwd = System.getProperty("user.dir");    //Current working directory
+        Path jarPath = Paths.get(cwd + "/" + jarName);
+        
+        //Create the JAR file
+        try{
+            FileOutputStream fos = new FileOutputStream(jarName);
+            JarOutputStream jos = new JarOutputStream(fos, new Manifest());
+
+            //Add all the files in the CWD to the JAR package
+            addFilesToJar(new File(cwd), jos);
+
+            // Close the JAR output stream
+            jos.close();
+            fos.close();
+        }catch (IOException e){}
+
+        //Upload the JAR file to S3
+        HashMap<String, String> metaData = new HashMap();
+        metaData.put("JAR", cwd + "/" + jarName);
+        s3.putObject(PutObjectRequest.builder()
+                    .key(cwd + "/" + jarName)
+                    .bucket(jarBucketName)
+                    .metadata(metaData)
+                    .build(), 
+                    RequestBody.fromFile(jarPath));
     }
 
     // EC2

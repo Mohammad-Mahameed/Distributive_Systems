@@ -33,6 +33,13 @@ public class LocalApp {
         AtomicBoolean terminate = new AtomicBoolean(false);
         parseArgs(args, inputFilesPaths, outputFilesPaths, n, terminate);
 
+        //Create a JAR bucket
+        String jarBucketName = "jar-bucket-assignment1-2024";
+        aws.createBucketIfNotExists(jarBucketName);
+        //Create and upload the JAR package to it
+        String jarName = "Assignment1.jar";
+        aws.uploadJarPackageToS3(jarBucketName, jarName);
+
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
                             "echo Hello World\n";
@@ -49,14 +56,6 @@ public class LocalApp {
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
         
         //TODO: points 4-6
-
-
-        /*DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(null).build();
-        System.out.println("request " + request.toString());
-
-        DescribeInstancesResponse response = aws.ec2.describeInstances(request);
-        System.out.println("reservations size " + response.reservations().size());
-        System.out.println("response " + response.toString());*/
     }
 
     
