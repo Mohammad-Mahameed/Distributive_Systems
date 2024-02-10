@@ -9,20 +9,24 @@ public class Manager {
     final static AWS aws = AWS.getInstance();
     final static int maxNumberOfWorkers = 18;
     static int numberOfActiveWorkers = 0;       //Overall created-running workers
-    static int N = 0;                           //Workers' files ratio (reviews per worker)
+    static int N = 1;                           //Workers' files ratio (reviews per worker)
     static int sqsCounter = 0;                  //Number of assigned jobs - in order to track the number of the required workers - resets after creating every new worker.
     static Boolean terminate = false;
 
     public static void main(String []args){
 
-        String AppToManagerSqs = "AppToManager";
+        //SQS queue for distributing the messages over the workers
         String ManagerToWorkers = "ManagerToWorkers";
+        aws.createSqsQueue(ManagerToWorkers);
+        String ManagerToWorkersSqsURL = aws.getQueueURL(ManagerToWorkers);
+
+        String AppToManagerSqs = "AppToManager";
         String AppToManagerSqsURL = aws.getQueueURL(AppToManagerSqs);
-        String ManagerToWorkersSqsURL = aws.getQueueURL(AppToManagerSqsURL);
 
         //Initiate at least one worker, in order to avoid missing jobs which contain less than N files
         String workerScript = ""; // TODO
-        aws.createEC2(workerScript, "Worker", 1);
+        if(numberOfActiveWorkers < maxNumberOfWorkers)
+            aws.createEC2(workerScript, "Worker" + ++numberOfActiveWorkers, 1);
 
         while(!terminate){  //Until a "terminate" message is received
             Message msg = null;
@@ -49,7 +53,7 @@ public class Manager {
                 
                 if(sqsCounter == N){
                     if(numberOfActiveWorkers == maxNumberOfWorkers) continue;
-                    aws.createEC2(workerScript, "Worker", 1);
+                    aws.createEC2(workerScript, "Worker" + ++numberOfActiveWorkers, 1);
                     sqsCounter = 0;
                 }
             }

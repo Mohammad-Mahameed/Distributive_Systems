@@ -44,8 +44,8 @@ public class LocalApp {
         aws.uploadInputFilesToS3(inputFilesPaths, bucketName);
 
         //Create an SQS and pass the input files to the manager
-        aws.createSqsQueue("inputFilesSQS");
-        String queueURL = aws.getQueueURL("inputFilesSQS");
+        aws.createSqsQueue("AppToManager");
+        String queueURL = aws.getQueueURL("AppToManager");
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
         
         //TODO: points 4-6
