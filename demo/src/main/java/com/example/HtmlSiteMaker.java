@@ -28,7 +28,6 @@ public class HtmlSiteMaker {
                         isSarcasm + " " +
                         "- Entity List: " + review.getEntityString() +
                         "</p>\n";
-        
         this.htmlContent = htmlContent + line;
     }
 

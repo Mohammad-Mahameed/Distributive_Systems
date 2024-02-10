@@ -47,20 +47,8 @@ public class Worker {
         List<Book> books = parseFile(localFilePath);
 
         allReviewsHandle(books);
-
-        HtmlSiteMaker siteMaker = new HtmlSiteMaker(localFilePath);
-        Book test = books.get(0);
-        for(Review review : test.getReviews()){
-            siteMaker.addLine(review);
-        }
-        siteMaker.finishSite();
-        
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("sample.html"))) {
-            writer.write(siteMaker.getHtmlContent());
-            System.out.println("HTML file created successfully.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        String htmlFileName = localFilePath + ".html";
+        makeHtmlSite(books, localFilePath, htmlFileName);
     }
 
     public static List<Book> parseFile(String localFilePath){
@@ -74,22 +62,6 @@ public class Worker {
                 // Parse each line as JSON
                 Book book = objectMapper.readValue(line, Book.class);
                 books.add(book);
-                // Accessing fields
-                /* 
-                String title = book.getTitle();
-                System.out.println("Title: " + title);
-
-                // Accessing reviews for each book
-                for (Review review : book.getReviews()) {
-                        System.out.println("  - Review ID: " + review.getId());
-                        System.out.println("    Link: " + review.getLink());
-                        System.out.println("    Review Title: " + review.getReviewTitle());
-                        System.out.println("    Review Text: " + review.getReviewText());
-                        System.out.println("    Rating: " + review.getRating());
-                        System.out.println("    Author: " + review.getAuthor());
-                        System.out.println("    Date: " + review.getDate());
-                }*/
-                
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -104,6 +76,23 @@ public class Worker {
                 List<String> entityList = namedEntityRecognitionHandler.getEntities(review.getReviewText());
                 review.setEntity(entityList);
             }
+        }
+    }
+
+    public static void makeHtmlSite(List<Book> books, String localFilePath, String htmlFileName){
+        HtmlSiteMaker siteMaker = new HtmlSiteMaker(localFilePath);
+        for(Book book : books){
+            for(Review review : book.getReviews()){
+                siteMaker.addLine(review);
+            }
+        }
+        siteMaker.finishSite();
+        
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(htmlFileName))) {
+            writer.write(siteMaker.getHtmlContent());
+            System.out.println("HTML file created successfully.");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

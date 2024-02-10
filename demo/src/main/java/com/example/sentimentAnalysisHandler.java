@@ -37,30 +37,35 @@ public class sentimentAnalysisHandler {
         }
         public static void analyse(Review review){ 
             int result = sentimentAnalysisHandler.findSentiment(review.getReviewText());
-
             review.setSentiment(result);
-            if(result == review.getRating())
+
+            if(result == review.getRating() - 1)
                 review.setSarcasm(false);
             else
                 review.setSarcasm(true);
-
+                
             HtmlColor htmlColor = null;
 
             switch (result) {
                 case 0:{
                     htmlColor = HtmlColor.DarkRed();
+                    break;
                 }
                 case 1:{
                     htmlColor = HtmlColor.Red();
+                    break;
                 }
                 case 2:{
                     htmlColor = HtmlColor.Black();
+                    break;
                 }
                 case 3:{
                     htmlColor = HtmlColor.LightGreen();
+                    break;
                 }
                 case 4:{
                     htmlColor = HtmlColor.DarkGreen();
+                    break;
                 }
             }
             review.setHtmlColor(htmlColor);
