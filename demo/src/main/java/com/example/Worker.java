@@ -1,91 +1,69 @@
+package com.example;
+
+import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import edu.stanford.nlp.ling.CoreAnnotations;
-import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
-import edu.stanford.nlp.ling.CoreLabel;
-import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
-import edu.stanford.nlp.pipeline.Annotation;
-import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
-import edu.stanford.nlp.trees.Tree;
-import edu.stanford.nlp.util.CoreMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import software.amazon.awssdk.services.sqs.model.*;
+
+import java.io.File;
 
 public class Worker {
 
     final static AWS aws = AWS.getInstance();
 
     static sentimentAnalysisHandler sentimentAnalysisHandler = new sentimentAnalysisHandler();
-    static namedEntityRecognitionHandler namedEntityRecognitionHandler = new amedEntityRecognitionHandler();
+    static namedEntityRecognitionHandler namedEntityRecognitionHandler = new namedEntityRecognitionHandler();
 
     public static void main(String[] args) {
         AtomicBoolean termminated = new AtomicBoolean(false);
-        while(termminated.equals(false)){
+        while(termminated.get() == false){
+            System.out.print("ksmk");
             Message message = aws.getMessageFromManagerToWorker("ManagerToWorkers");
             if(message.body() == "TERMINATE!"){
-                termminated = true;
+                //termminated.set(true);
             }
             else{
-                aws.downloadFileFromS3(message.body());
+                System.out.print("hi");
+                String s3Url = message.body();
+                String localFilePath = "path_to_save_file_locally"; // Specify the local file path to save the downloaded file
+                aws.downloadFileFromS3(s3Url, localFilePath);
+
+
             }
+            
         }
     }
 
+    public static Book[] parseFile(String localFilePath){
+        ObjectMapper objectMapper = new ObjectMapper();
 
-    public static void printEntities(String review){
+        try {
+            // Read JSON file into array of Book objects
+            Book[] books = objectMapper.readValue(new File("example.json"), Book[].class);
 
-        Properties props = new Properties();
-        props.put("annotators", "tokenize , ssplit, pos, lemma, ner");
-        StanfordCoreNLP NERPipeline = new StanfordCoreNLP(props);
+            for (Book book : books) {
+                // Accessing fields for each Book object
+                String title = book.getTitle();
+                System.out.println("Title: " + title);
 
-        // create an empty Annotation just with the given text
-        Annotation document = new Annotation(review);
-        // run all Annotators on this text
-        nerPipeline.annotate(document);
-        // these are all the sentences in this document
-        // a CoreMap is essentially a Map that uses class objects as keys and has values with
-        // custom types
-        List<CoreMap> sentences = document.get(SentencesAnnotation.class);
-        for(CoreMap sentence: sentences) {
-        // traversing the words in the current sentence
-        // a CoreLabel is a CoreMap with additional token-specific methods
-            for (CoreLabel token: sentence.get(TokensAnnotation.class)) {
-        // this is the text of the token
-            String word = token.get(TextAnnotation.class);
-        // this is the NER label of the token
-            String ne = token.get(NamedEntityTagAnnotation.class);
-            System.out.println("\t-" + word + ":" + ne);
-            }
-        }
-    }
-
-    public static int findSentiment(String review) {
-
-        Properties props = new Properties();
-        props.put("annotators", "tokenize, ssplit, parse, sentiment");
-        StanfordCoreNLP sentimentPipeline = new StanfordCoreNLP(props);
-
-        int mainSentiment = 0;
-        if (review!= null && review.length() > 0) {
-            int longest = 0;
-            Annotation annotation = sentimentPipeline.process(review);
-            for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
-                Tree tree = sentence.get(
-                SentimentCoreAnnotations.SentimentAnnotatedTree.class);
-                int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
-                String partText = sentence.toString();
-                if (partText.length() > longest) {
-                    mainSentiment = sentiment;
-                    longest = partText.length();
+                // Accessing reviews for each book
+                for (Review review : book.getReviews()) {
+                    System.out.println("  - Review ID: " + review.getId());
+                    System.out.println("    Link: " + review.getLink());
+                    System.out.println("    Review Title: " + review.getReviewTitle());
+                    System.out.println("    Review Text: " + review.getReviewText());
+                    System.out.println("    Rating: " + review.getRating());
+                    System.out.println("    Author: " + review.getAuthor());
+                    System.out.println("    Date: " + review.getDate());
                 }
             }
+            return books;
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return mainSentiment;
+        return null;
     }
-
-
 }

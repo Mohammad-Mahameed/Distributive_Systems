@@ -5,22 +5,22 @@ import java.util.HashMap;
 
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-
+import software.amazon.awssdk.services.sqs.model.*;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
-import software.amazon.awssdk.regions.Region;
+import java.net.URI;
+
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.ec2.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
-import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
-
-import java.nio.file.Paths;
 import java.util.Base64;
 
 public class AWS {
@@ -263,7 +263,7 @@ public class AWS {
         ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveMessageRequest);
 
         if(receiveMessageResponse.hasMessages())
-            return receiveMessageResponse.message.get(0);
+            return receiveMessageResponse.messages().get(0);
         
         return null;
 
@@ -290,28 +290,33 @@ public class AWS {
             */
     }
 
-    public void downloadFileFromS3(String objectKey, String bucketName){
-
-        // Create a file to save the downloaded object
-        Path filePath = Paths.get(objectKey + " downloaded-file.txt");
-
+    public void downloadFileFromS3(String s3Url, String localFilePath){
         try {
-            // Specify the request to get the object
+            URI uri = new URI(s3Url);
+            String bucketName = uri.getHost();
+            String objectKey = uri.getPath().substring(1); // Remove the leading slash
+
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(objectKey)
                     .build();
 
-            // Download the object and save it to the file
-            GetObjectResponse getObjectResponse = s3.getObject(getObjectRequest,
-                    ResponseTransformer.toFile(filePath));
+            ResponseBytes<?> responseBytes = s3.getObjectAsBytes(getObjectRequest);
 
-            // Print the download status
-            System.out.println("File downloaded successfully: " + filePath.toAbsolutePath());
-        } catch (NoSuchKeyException e) {
-            System.err.println("The specified object does not exist in the bucket.");
-        } catch (IOException e) {
-            System.err.println("Error downloading the file: " + e.getMessage());
+            // Save the object to a file
+            FileOutputStream fos = new FileOutputStream(localFilePath);
+            fos.write(responseBytes.asByteArray());
+            fos.close();
+            System.out.println("File downloaded successfully to: " + localFilePath);
+
+        } catch (URISyntaxException e) {
+            System.err.println("Invalid S3 URL format: " + e.getMessage());
+        } catch (S3Exception e) {
+            System.err.println(e.awsErrorDetails().errorMessage());
+            System.exit(1);
+        } catch (SdkException | IOException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
         }
     }
 

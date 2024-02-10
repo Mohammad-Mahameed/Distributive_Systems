@@ -9,19 +9,6 @@ import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
-import software.amazon.awssdk.services.ec2.model.Ec2Exception;
-import software.amazon.awssdk.services.ec2.model.IamInstanceProfileSpecification;
-import software.amazon.awssdk.services.ec2.model.Instance;
-import software.amazon.awssdk.services.ec2.model.InstanceType;
-import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
-import software.amazon.awssdk.services.ec2.model.Tag;
-import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
-
 public class LocalApp {
 
     final static AWS aws = AWS.getInstance();
@@ -44,8 +31,8 @@ public class LocalApp {
         aws.uploadInputFilesToS3(inputFilesPaths, bucketName);
 
         //Create an SQS and pass the input files to the manager
-        aws.createSqsQueue("inputFilesSQS");
-        String queueURL = aws.getQueueURL("inputFilesSQS");
+        aws.createSqsQueue("ManagerToWorkers");
+        String queueURL = aws.getQueueURL("ManagerToWorkers");
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
         
         //TODO: points 4-6
