@@ -1,5 +1,6 @@
 package com.example;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
@@ -14,12 +15,14 @@ import edu.stanford.nlp.util.CoreMap;
 
 public class namedEntityRecognitionHandler {
 
-        public static void printEntities(String review){
+        public static List<String> getEntities(String review){
+        
+        List<String> res = new LinkedList<>();
 
         Properties props = new Properties();
         props.put("annotators", "tokenize , ssplit, pos, lemma, ner");
         StanfordCoreNLP NERPipeline = new StanfordCoreNLP(props);
-
+        
         // create an empty Annotation just with the given text
         Annotation document = new Annotation(review);
         // run all Annotators on this text
@@ -36,8 +39,12 @@ public class namedEntityRecognitionHandler {
             String word = token.get(TextAnnotation.class);
         // this is the NER label of the token
             String ne = token.get(NamedEntityTagAnnotation.class);
-            System.out.println("\t-" + word + ":" + ne);
+            //System.out.println("\t-" + word + ":" + ne);
+            String entity = word + ":" + ne;
+            res.add(entity);
             }
         }
+
+        return res;
     }
 }

@@ -1,5 +1,6 @@
 package com.example;
 
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Review {
@@ -23,6 +24,10 @@ public class Review {
 
     @JsonProperty("date")
     private String date;
+
+    private HtmlColor htmlColor;
+    private Boolean sarcasm;
+    private List<String> entity;
 
     // Getters and setters
     public String getId() {
@@ -79,5 +84,29 @@ public class Review {
 
     public void setDate(String date) {
         this.date = date;
+    }
+
+    public void setHtmlColor(HtmlColor htmlColor){
+        this.htmlColor = htmlColor;
+    }
+
+    public HtmlColor getHtmlColor(){
+        return this.htmlColor;
+    }
+
+    public void setSarcasm(Boolean sarcasm){
+        this.sarcasm = sarcasm;
+    }
+
+    public Boolean gerSarcasm(){
+        return this.sarcasm;
+    }
+
+    public void setEntity(List<String> entity){
+        this.entity = entity;
+    }
+
+    public List<String> getEntity(){
+        return this.entity;
     }
 }
