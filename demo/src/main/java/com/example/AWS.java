@@ -10,6 +10,7 @@ import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -264,5 +265,21 @@ public class AWS {
          
          return null;
      }
+
+    public void sendMessageToSqs(String queueURL, String messageBody){
+        SendMessageRequest sendRequest = SendMessageRequest.builder()
+                .queueUrl(queueURL)
+                .messageBody(messageBody)
+                .build();
+        sqs.sendMessage(sendRequest);
+    }
+
+    public void deleteMessageFromSqs(String queueUrl, Message message){
+        DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
+                    .queueUrl(queueUrl)
+                    .receiptHandle(message.receiptHandle())
+                    .build();
+        sqs.deleteMessage(deleteRequest);
+    }
 
 }
