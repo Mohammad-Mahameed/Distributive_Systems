@@ -323,6 +323,15 @@ public class AWS {
         
     }
 
+
+    public void deleteMessageFromSqs(String queueUrl, Message message){
+        DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
+                    .queueUrl(queueUrl)
+                    .receiptHandle(message.receiptHandle())
+                    .build();
+        sqs.deleteMessage(deleteRequest);
+    }
+    
     public void deleteMessageFromSQS(String bucketName, Message message){
         DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
         .queueUrl(getQueueURL(bucketName))
