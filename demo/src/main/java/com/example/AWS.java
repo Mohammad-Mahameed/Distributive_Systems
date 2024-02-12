@@ -5,6 +5,8 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.jar.*;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
@@ -88,50 +90,70 @@ public class AWS {
         }
     }
 
-    private static void addFilesToJar(File directory, JarOutputStream jos) throws IOException {
-        // Get a list of files and directories in the current directory
-        File[] files = directory.listFiles();
-
-        // Iterate over the files
-        for (File file : files) {
-            String entryName = file.getPath().replace("\\", "/"); // Use forward slash for entry name
-            JarEntry jarEntry = new JarEntry(entryName);
-            jos.putNextEntry(jarEntry);
-
-            // Write the file contents to the JAR
-            FileInputStream fis = new FileInputStream(file);
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                jos.write(buffer, 0, bytesRead);
+    private static void addFileOrDirectoryToJar(File fileOrDirectory, String baseDir, JarOutputStream jos) throws IOException {
+        if (fileOrDirectory.isDirectory()) {
+            // If it's a directory, recursively add its contents to the JAR
+            File[] files = fileOrDirectory.listFiles();
+            for (File file : files) {
+                addFileOrDirectoryToJar(file, baseDir + "/" + file.getName(), jos);
             }
-            fis.close();
-            jos.closeEntry();
+        } else {
+            // If it's a file, add it to the JAR
+            if(fileOrDirectory.getName().equals("Assignment1.jar"))
+                return;
+            System.out.println("Adding file: " + fileOrDirectory.getName());
+            addFileToJar(fileOrDirectory, baseDir, jos);
+            System.out.println("Added file: " + fileOrDirectory.getName() + " successfully!");
         }
     }
 
-    public void uploadJarPackageToS3(String jarBucketName, String jarName){
-        String cwd = System.getProperty("user.dir");    //Current working directory
-        Path jarPath = Paths.get(cwd + "/" + jarName);
+    private static void addFileToJar(File file, String baseDir, JarOutputStream jos) throws IOException {
+        // Create a JarEntry with the file's name
+        JarEntry jarEntry = new JarEntry(file.getName());
+        try{
+            jos.putNextEntry(jarEntry);
+        }catch(Exception e){}
         
-        //Create the JAR file
+        // Write the file contents to the JAR
+        FileInputStream fis = new FileInputStream(file);
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = fis.read(buffer)) != -1) {
+            jos.write(buffer, 0, bytesRead);
+        }
+        fis.close();
+        
+        jos.closeEntry();
+    }
+
+    public void uploadJarPackageToS3(String jarBucketName, String jarName){
+        Path jarPath = Paths.get(jarName);
+        System.out.println("jarPath: " + jarPath);
+        
+        //Create the JAR file   
+        String cwd = System.getProperty("user.dir");
+        System.out.println("cwd: " + cwd);    //Current working directory
+
+        File directory = new File(cwd);
+        File[] files = directory.listFiles();
+
         try{
             FileOutputStream fos = new FileOutputStream(jarName);
             JarOutputStream jos = new JarOutputStream(fos, new Manifest());
 
             //Add all the files in the CWD to the JAR package
-            addFilesToJar(new File(cwd), jos);
+            addFileOrDirectoryToJar(directory, directory.getName(), jos);
 
             // Close the JAR output stream
             jos.close();
             fos.close();
-        }catch (IOException e){}
+        }catch (IOException e){e.printStackTrace();}
 
         //Upload the JAR file to S3
         HashMap<String, String> metaData = new HashMap();
-        metaData.put("JAR", cwd + "/" + jarName);
+        metaData.put("JAR", jarName);
         s3.putObject(PutObjectRequest.builder()
-                    .key(cwd + "/" + jarName)
+                    .key(jarName)
                     .bucket(jarBucketName)
                     .metadata(metaData)
                     .build(), 
@@ -141,6 +163,8 @@ public class AWS {
     // EC2
     public String createManagerIfNotExists(String script) {
         String tagName = "amj450_Manager";
+        System.out.println("Encoded script: " + Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_8)));
+
         //Check if a Manager node already exists
         String nextToken = null;
 
@@ -154,7 +178,7 @@ public class AWS {
                     if (instance.tags().size() != 0 && 
                         (instance.state().name().toString().equalsIgnoreCase("running") || instance.state().name().toString().equalsIgnoreCase("pending")) &&
                         instance.tags().get(0).value().equals(tagName)) {
-                        System.out.println("Manager already running!");
+                        System.out.println("Manager is already running!");
                         return null;
                     }
                 }
@@ -172,7 +196,7 @@ public class AWS {
             .minCount(1)
             .keyName("vockey")
             .iamInstanceProfile(IamInstanceProfileSpecification.builder().name("LabInstanceProfile").build())
-            .userData(Base64.getEncoder().encodeToString((script).getBytes()))
+            .userData(Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_8)))
             .build();
 
         RunInstancesResponse response = ec2.runInstances(runRequest);

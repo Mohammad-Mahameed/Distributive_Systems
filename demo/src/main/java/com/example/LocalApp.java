@@ -42,7 +42,11 @@ public class LocalApp {
 
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
-                            "echo Hello World\n";
+                            "echo 'Hello World!'\n" +
+                            "sudo yum install -y java-1.8.0-openjdk-devel\n" +
+                            "aws s3api get-object --bucket " + jarBucketName + " --key jar " + jarName + "\n" +
+                            "java -jar " + jarName + " Manager\n";
+        System.out.println("Manager's script: " + ec2Script);
         aws.createManagerIfNotExists(ec2Script);
 
         //Create a S3 bucket and upload the input files to it
