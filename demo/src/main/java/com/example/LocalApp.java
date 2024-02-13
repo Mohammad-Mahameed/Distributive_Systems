@@ -9,6 +9,19 @@ import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
+import software.amazon.awssdk.services.ec2.model.Ec2Exception;
+import software.amazon.awssdk.services.ec2.model.IamInstanceProfileSpecification;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
+
 public class LocalApp {
 
     final static AWS aws = AWS.getInstance();
@@ -20,9 +33,20 @@ public class LocalApp {
         AtomicBoolean terminate = new AtomicBoolean(false);
         parseArgs(args, inputFilesPaths, outputFilesPaths, n, terminate);
 
+        //Create a JAR bucket
+        String jarBucketName = "jar-bucket-assignment1-2024";
+        aws.createBucketIfNotExists(jarBucketName);
+        //Create and upload the JAR package to it
+        String jarName = "Assignment1.jar";
+        aws.uploadJarPackageToS3(jarBucketName, jarName);
+
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
-                            "echo Hello World\n";
+                            "echo 'Hello World!'\n" +
+                            "sudo yum install -y java-1.8.0-openjdk-devel\n" +
+                            "aws s3api get-object --bucket " + jarBucketName + " --key jar " + jarName + "\n" +
+                            "java -jar " + jarName + " Manager\n";
+        System.out.println("Manager's script: " + ec2Script);
         aws.createManagerIfNotExists(ec2Script);
 
         //Create a S3 bucket and upload the input files to it
@@ -31,19 +55,11 @@ public class LocalApp {
         aws.uploadInputFilesToS3(inputFilesPaths, bucketName);
 
         //Create an SQS and pass the input files to the manager
-        aws.createSqsQueue("ManagerToWorkers");
-        String queueURL = aws.getQueueURL("ManagerToWorkers");
+        aws.createSqsQueue("AppToManager");
+        String queueURL = aws.getQueueURL("AppToManager");
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
         
         //TODO: points 4-6
-
-
-        /*DescribeInstancesRequest request = DescribeInstancesRequest.builder().nextToken(null).build();
-        System.out.println("request " + request.toString());
-
-        DescribeInstancesResponse response = aws.ec2.describeInstances(request);
-        System.out.println("reservations size " + response.reservations().size());
-        System.out.println("response " + response.toString());*/
     }
 
     
