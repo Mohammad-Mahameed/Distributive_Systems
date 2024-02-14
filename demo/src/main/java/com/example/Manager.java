@@ -24,7 +24,11 @@ public class Manager {
         String AppToManagerSqsURL = aws.getQueueURL(AppToManagerSqs);
 
         //Initiate at least one worker, in order to avoid missing jobs which contain less than N files
-        String workerScript = ""; // TODO
+        String workerScript = "#!/bin/bash\n" +
+                                "sudo yum update -y\n" +
+                                "sudo yum install -y java-1.8.0-openjdk\n" +
+                                "aws s3 cp s3://jar-bucket-assignment1-2024/target/demo-1.0-SNAPSHOT.jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar\n" +
+                                "java -jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar com.example.Worker\n";   //FOR ABED: Check that Worker is correct worker's class name
         if(numberOfActiveWorkers < maxNumberOfWorkers)
             aws.createEC2(workerScript, "Worker" + ++numberOfActiveWorkers, 1);
 
@@ -39,7 +43,7 @@ public class Manager {
 
             String msgBody = msg.body();
 
-            if(msgBody.equals("termiante")){
+            if(msgBody.equals("terminate")){
                 terminate();
                 /*
                  * TODO: Implement the required implementation when serving more than a single Local Application.

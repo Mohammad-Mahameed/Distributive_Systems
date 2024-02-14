@@ -90,65 +90,39 @@ public class AWS {
         }
     }
 
-    private static void addFileOrDirectoryToJar(File fileOrDirectory, String baseDir, JarOutputStream jos) throws IOException {
-        if (fileOrDirectory.isDirectory()) {
-            // If it's a directory, recursively add its contents to the JAR
-            File[] files = fileOrDirectory.listFiles();
-            for (File file : files) {
-                addFileOrDirectoryToJar(file, baseDir + "/" + file.getName(), jos);
+    private static void addFileToJar(JarOutputStream jos, File file, String parentDir) throws IOException {
+        String entryName = parentDir + file.getName();
+        if(entryName.endsWith(".jar"))
+            return;
+
+        // Add directory entry
+        if (file.isDirectory()) {
+            entryName += "/";
+            jos.putNextEntry(new JarEntry(entryName));
+            jos.closeEntry();
+
+            // Recursively add files and directories within the directory
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    addFileToJar(jos, f, entryName);
+                }
             }
         } else {
-            // If it's a file, add it to the JAR
-            if(fileOrDirectory.getName().equals("Assignment1.jar"))
-                return;
-            System.out.println("Adding file: " + fileOrDirectory.getName());
-            addFileToJar(fileOrDirectory, baseDir, jos);
-            System.out.println("Added file: " + fileOrDirectory.getName() + " successfully!");
+            // Add file entry
+            jos.putNextEntry(new JarEntry(entryName));
+            try (FileInputStream fis = new FileInputStream(file)) {
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    jos.write(buffer, 0, bytesRead);
+                }
+            }
+            jos.closeEntry();
         }
-    }
-
-    private static void addFileToJar(File file, String baseDir, JarOutputStream jos) throws IOException {
-        // Create a JarEntry with the file's name
-        JarEntry jarEntry = new JarEntry(file.getName());
-        try{
-            jos.putNextEntry(jarEntry);
-        }catch(Exception e){}
-        
-        // Write the file contents to the JAR
-        FileInputStream fis = new FileInputStream(file);
-        byte[] buffer = new byte[1024];
-        int bytesRead;
-        while ((bytesRead = fis.read(buffer)) != -1) {
-            jos.write(buffer, 0, bytesRead);
-        }
-        fis.close();
-        
-        jos.closeEntry();
     }
 
     public void uploadJarPackageToS3(String jarBucketName, String jarName){
-        Path jarPath = Paths.get(jarName);
-        System.out.println("jarPath: " + jarPath);
-        
-        //Create the JAR file   
-        String cwd = System.getProperty("user.dir");
-        System.out.println("cwd: " + cwd);    //Current working directory
-
-        File directory = new File(cwd);
-        File[] files = directory.listFiles();
-
-        try{
-            FileOutputStream fos = new FileOutputStream(jarName);
-            JarOutputStream jos = new JarOutputStream(fos, new Manifest());
-
-            //Add all the files in the CWD to the JAR package
-            addFileOrDirectoryToJar(directory, directory.getName(), jos);
-
-            // Close the JAR output stream
-            jos.close();
-            fos.close();
-        }catch (IOException e){e.printStackTrace();}
-
         //Upload the JAR file to S3
         HashMap<String, String> metaData = new HashMap();
         metaData.put("JAR", jarName);
@@ -157,7 +131,7 @@ public class AWS {
                     .bucket(jarBucketName)
                     .metadata(metaData)
                     .build(), 
-                    RequestBody.fromFile(jarPath));
+                    RequestBody.fromFile(Paths.get(jarName)));
     }
 
     // EC2

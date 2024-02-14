@@ -37,16 +37,16 @@ public class LocalApp {
         String jarBucketName = "jar-bucket-assignment1-2024";
         aws.createBucketIfNotExists(jarBucketName);
         //Create and upload the JAR package to it
-        String jarName = "Assignment1.jar";
+        String jarName = "target/demo-1.0-SNAPSHOT.jar";
         aws.uploadJarPackageToS3(jarBucketName, jarName);
 
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
-                            "echo 'Hello World!'\n" +
-                            "sudo yum install -y java-1.8.0-openjdk-devel\n" +
-                            "aws s3api get-object --bucket " + jarBucketName + " --key jar " + jarName + "\n" +
-                            "java -jar " + jarName + " Manager\n";
-        System.out.println("Manager's script: " + ec2Script);
+                            "sudo yum update -y\n" +
+                            "sudo yum install -y java-1.8.0-openjdk\n" +
+                            "aws s3 cp s3://jar-bucket-assignment1-2024/target/demo-1.0-SNAPSHOT.jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar\n" +
+                            "java -jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar com.example.Manager\n";
+        System.out.println("Manager's script:\n" + ec2Script);
         aws.createManagerIfNotExists(ec2Script);
 
         //Create a S3 bucket and upload the input files to it
