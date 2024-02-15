@@ -1,1 +1,1 @@
-mvn exec:java -Dexec.mainClass="com.example.LocalApp" -Dexec.cleanupDaemonThreads=false -Dexec.args="input1.txt input2.txt output2.txt output2.txt 5 terminate"
+mvn exec:java -Dexec.mainClass="com.example.LocalApp" -Dexec.cleanupDaemonThreads=false -Dexec.args="input1_test.txt input2_test.txt output2_test.txt output2_test.txt 5 terminate"

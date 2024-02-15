@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 
+import software.amazon.awssdk.services.sqs.model.*;
 public class LocalApp {
 
     final static AWS aws = AWS.getInstance();
@@ -34,32 +35,49 @@ public class LocalApp {
         parseArgs(args, inputFilesPaths, outputFilesPaths, n, terminate);
 
         //Create a JAR bucket
-        String jarBucketName = "jar-bucket-assignment1-2024";
+        String jarBucketName = "jar-bucket-assignment1-2024-test";
         aws.createBucketIfNotExists(jarBucketName);
         //Create and upload the JAR package to it
-        String jarName = "Assignment1.jar";
+        String jarName = "target/demo-1.0-SNAPSHOT.jar";
         aws.uploadJarPackageToS3(jarBucketName, jarName);
 
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
-                            "echo 'Hello World!'\n" +
-                            "sudo yum install -y java-1.8.0-openjdk-devel\n" +
-                            "aws s3api get-object --bucket " + jarBucketName + " --key jar " + jarName + "\n" +
-                            "java -jar " + jarName + " Manager\n";
-        System.out.println("Manager's script: " + ec2Script);
+                            "sudo yum update -y\n" +
+                            "sudo yum install -y java-1.8.0-openjdk\n" +
+                            "aws s3 cp s3://jar-bucket-assignment1-2024-test/target/demo-1.0-SNAPSHOT.jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar\n" +
+                            "java -jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar com.example.Manager\n";
+        System.out.println("Manager's script:\n" + ec2Script);
         aws.createManagerIfNotExists(ec2Script);
 
         //Create a S3 bucket and upload the input files to it
-        String bucketName = "amj450-bucket";
+        String bucketName = "amj450-new-bucket-test";
         aws.createBucketIfNotExists(bucketName);
         aws.uploadInputFilesToS3(inputFilesPaths, bucketName);
 
         //Create an SQS and pass the input files to the manager
-        aws.createSqsQueue("AppToManager");
-        String queueURL = aws.getQueueURL("AppToManager");
+        aws.createSqsQueue("AppToManager-test");
+        String queueURL = aws.getQueueURL("AppToManager-test");
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
+        if(terminate.get() == true)
+            aws.sendMessageToSqs(queueURL, "terminate");
         
         //TODO: points 4-6
+        int numOfFiles = outputFilesPaths.size();
+        int index = 0;
+        while (numOfFiles > index ) {
+            try{
+            Message message = aws.getMessageFromSqs("ManagerToApp-test");
+            if(message != null){
+                String objectKey = message.body();
+                System.out.println("message from Mangager to App" + objectKey);
+                String localFilePath = outputFilesPaths.get(index); 
+                String fromBucketName = "worker-s3-new-test";
+                aws.downloadFileFromS3(fromBucketName, objectKey, localFilePath);
+                index ++;
+            }
+            }catch(Exception e){}   
+        }
     }
 
     

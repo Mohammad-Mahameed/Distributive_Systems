@@ -26,7 +26,7 @@ public class Worker {
         AtomicBoolean termminated = new AtomicBoolean(false);
         while(termminated.get() == false){
             Message message = aws.getMessageFromSqs("ManagerToWorkers-test");
-            if(message.body() == "TERMINATE!"){
+            if(message.body() == "terminate"){
                 termminated.set(true);
             }
             else{
@@ -37,9 +37,9 @@ public class Worker {
                 aws.downloadFileFromS3(fromBucketName, objectKey, localFilePath);
                 List<Book> books = parseFile(localFilePath);
                 allReviewsHandle(books);
-                String htmlFileName = localFilePath + ".html";
+                String htmlFileName = objectKey.substring(0,objectKey.length() - 3) + ".html";
                 makeHtmlSite(books, localFilePath, htmlFileName);
-                String toBucketName = "worker-s3-test";
+                String toBucketName = "worker-s3-new-test";
                 aws.createBucketIfNotExists(toBucketName);
                 aws.uploadOutputFileToS3(htmlFileName, toBucketName);
                 aws.deleteMessageFromSQS("ManagerToWorkers-test", message);
