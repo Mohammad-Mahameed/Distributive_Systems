@@ -64,7 +64,9 @@ public class Manager {
             }
             else{   //A new job-handlement was requested - a file Path was received
                 String inputFilePath = msgBody;
-                aws.sendMessageToSqs(ManagerToWorkersSqsURL, inputFilePath);
+                String senderId = msg.messageAttributes().get("SenderId").stringValue();
+
+                aws.sendMessageToSqs(ManagerToWorkersSqsURL, inputFilePath, senderId);
                 sentMessages.incrementAndGet();
                 sqsCounter++;
                 

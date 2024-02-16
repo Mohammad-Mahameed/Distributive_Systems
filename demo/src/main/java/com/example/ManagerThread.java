@@ -34,10 +34,11 @@ public class ManagerThread implements Runnable {
                 try{
                     Message message = aws.getMessageFromSqs("WorkerToManager-test-2");
                     if(message != null){
+                        String senderId = message.messageAttributes().get("SenderId").stringValue();
                         dealtMessages++;
                         aws.deleteMessageFromSqs(aws.getQueueURL("WorkerToManager-test-2"), message);
                         String objectKey = message.body();
-                        aws.sendMessageToSqs(aws.getQueueURL(sqsName), objectKey);
+                        aws.sendMessageToSqs(aws.getQueueURL(sqsName), objectKey, senderId);
                     }
                 }catch(Exception e){}
                 

@@ -58,17 +58,20 @@ public class LocalApp {
         //Create an SQS and pass the input files to the manager
         aws.createSqsQueue("AppToManager-test-2");
         String queueURL = aws.getQueueURL("AppToManager-test-2");
-        aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
+
+        // senderId serves the functionality of having more than one running LocalApplication. The used ID is the CWD for each application.
+        String senderId = System.getProperty("user.dir");
+        aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName, senderId);
         
         //TODO: points 4-6
         int numOfFiles = outputFilesPaths.size();
         int index = 0;
         while (numOfFiles > index ) {
             try{
-                Message message = aws.getMessageFromSqs("ManagerToApp-test-2");
+                Message message = aws.getOutputMessageFromSqs("ManagerToApp-test-2", "SenderId", senderId);
+                if(message != null){
                 aws.deleteMessageFromSqs(aws.getQueueURL("ManagerToApp-test-2") ,message);
                 System.out.println("Received a msg: " + message.body());
-                if(message != null){
                     String objectKey = message.body();
                     System.out.println("message from Mangager to App\n" + objectKey);
                     String localFilePath = outputFilesPaths.get(index); 
@@ -80,7 +83,7 @@ public class LocalApp {
         }
         
         if(terminate.get() == true){
-            aws.sendMessageToSqs(queueURL, "terminate");
+            aws.sendMessageToSqs(queueURL, "terminate", senderId);
 
             boolean ManagerTerminated = false;
             while(!ManagerTerminated){

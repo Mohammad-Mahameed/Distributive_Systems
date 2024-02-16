@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -332,13 +333,18 @@ public String createEC2(String script, String tagName, int numberOfInstances) {
         return inputFilesPaths;
     }
 
-    public void sendMessagesToManager(LinkedList<String> inputFilesKeys, String queueURL, String bucketName){
+    public void sendMessagesToManager(LinkedList<String> inputFilesKeys, String queueURL, String bucketName, String senderId){
         LinkedList<String> inputFilesPaths = getInputFilesPathsFromBucket(inputFilesKeys, bucketName);
         System.err.println("Input Files Paths: " + inputFilesPaths.toString());
+
+        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+        messageAttributes.put("SenderId", MessageAttributeValue.builder().dataType("String").stringValue(senderId).build());
+
         for(String inputFilePath: inputFilesPaths){
             SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
                 .queueUrl(queueURL)
                 .messageBody(inputFilePath)
+                .messageAttributes(messageAttributes)
                 .build();
 
             sqs.sendMessage(sendMessageRequest);
@@ -351,6 +357,7 @@ public String createEC2(String script, String tagName, int numberOfInstances) {
          // Create a request to receive a single message from the queue
          ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
                  .queueUrl(queueUrl)
+                 .messageAttributeNames("All")
                  .maxNumberOfMessages(1)  // Receive a single message
                  .build();
  
@@ -361,11 +368,32 @@ public String createEC2(String script, String tagName, int numberOfInstances) {
          
          return null;
      }
+
+    public Message getOutputMessageFromSqs(String queueName, String attributeName, String attributeValue){
+        String queueUrl = getQueueURL(queueName);
+
+        // Set up receive message request with message filter policy
+        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
+                .queueUrl(queueUrl)
+                .messageAttributeNames(attributeName, attributeValue) // Request specific attributes - in order to retrieve only relevant messages for this application
+                .build();
+
+        // Receive messages from the queue
+         ReceiveMessageResponse receiveMessageResponse = sqs.receiveMessage(receiveRequest);
+         if(receiveMessageResponse.hasMessages())
+             return receiveMessageResponse.messages().get(0);
+         
+         return null;
+    }
  
-    public void sendMessageToSqs(String queueURL, String messageBody){
+    public void sendMessageToSqs(String queueURL, String messageBody, String senderId){
+        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+        messageAttributes.put("SenderId", MessageAttributeValue.builder().dataType("String").stringValue(senderId).build());
+
         SendMessageRequest sendRequest = SendMessageRequest.builder()
                 .queueUrl(queueURL)
                 .messageBody(messageBody)
+                .messageAttributes(messageAttributes)
                 .build();
         sqs.sendMessage(sendRequest);
     }

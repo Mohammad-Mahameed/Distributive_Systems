@@ -33,6 +33,8 @@ public class Worker {
                 }
                 else{
                     String objectKey = message.body();
+                    String senderId = message.messageAttributes().get("SenderId").stringValue();
+
                     System.out.println(objectKey);
                     String localFilePath = "testout"; // Specify the local file path to save the downloaded file
                     String fromBucketName = "amj450-new-bucket-test-2";
@@ -45,7 +47,7 @@ public class Worker {
                     aws.createBucketIfNotExists(toBucketName);
                     aws.uploadOutputFileToS3(htmlFileName, toBucketName);
                     aws.deleteMessageFromSqs(aws.getQueueURL("ManagerToWorkers-test-2"), message);
-                    aws.sendMessageToSqs(aws.getQueueURL(sqsName), htmlFileName);
+                    aws.sendMessageToSqs(aws.getQueueURL(sqsName), htmlFileName, senderId);
                 } 
             }
         }
