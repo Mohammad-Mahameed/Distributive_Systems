@@ -70,7 +70,7 @@ public class LocalApp {
                 System.out.println("Received a msg: " + message.body());
                 if(message != null){
                     String objectKey = message.body();
-                    System.out.println("message from Mangager to App" + objectKey);
+                    System.out.println("message from Mangager to App\n" + objectKey);
                     String localFilePath = outputFilesPaths.get(index); 
                     String fromBucketName = "worker-s3-new-test-2";
                     aws.downloadFileFromS3(fromBucketName, objectKey, localFilePath);
