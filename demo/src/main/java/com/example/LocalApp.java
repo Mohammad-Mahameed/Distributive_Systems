@@ -68,7 +68,8 @@ public class LocalApp {
         while (numOfFiles > index ) {
             try{
                 Message message = aws.getMessageFromSqs("ManagerToApp-test-2");
-                System.out.println("Received a msg!");
+                aws.deleteMessageFromSqs(aws.getQueueURL("ManagerToApp-test-2") ,message);
+                System.out.println("Received a msg: " + message.body());
                 if(message != null){
                     String objectKey = message.body();
                     System.out.println("message from Mangager to App" + objectKey);

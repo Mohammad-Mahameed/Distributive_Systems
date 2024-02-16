@@ -412,13 +412,6 @@ public String createEC2(String script, String tagName, int numberOfInstances) {
                     .build();
         sqs.deleteMessage(deleteRequest);
     }
-    
-    public void deleteMessageFromSQS(String bucketName, Message message){
-        DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
-        .queueUrl(getQueueURL(bucketName))
-        .receiptHandle(message.receiptHandle())
-        .build();
-        sqs.deleteMessage(deleteRequest);
-    }
+
 
 }

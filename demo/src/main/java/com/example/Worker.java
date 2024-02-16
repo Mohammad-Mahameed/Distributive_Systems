@@ -26,27 +26,29 @@ public class Worker {
         AtomicBoolean termminated = new AtomicBoolean(false);
         while(termminated.get() == false){
             Message message = aws.getMessageFromSqs("ManagerToWorkers-test-2");
-            if(message.body() == "terminate"){
-                termminated.set(true);
+            if(message != null){
+                if(message.body() == "terminate"){
+                    termminated.set(true);
+                }
+                else{
+                    String objectKey = message.body();
+                    System.out.println(objectKey);
+                    String localFilePath = "testout"; // Specify the local file path to save the downloaded file
+                    String fromBucketName = "amj450-new-bucket-test-2";
+                    aws.downloadFileFromS3(fromBucketName, objectKey, localFilePath);
+                    List<Book> books = parseFile(localFilePath);
+                    allReviewsHandle(books);
+                    String htmlFileName = objectKey.substring(0,objectKey.length() - 3) + ".html";
+                    makeHtmlSite(books, localFilePath, htmlFileName);
+                    String toBucketName = "worker-s3-new-test-2";
+                    aws.createBucketIfNotExists(toBucketName);
+                    aws.uploadOutputFileToS3(htmlFileName, toBucketName);
+                    aws.deleteMessageFromSqs(aws.getQueueURL("ManagerToWorkers-test-2"), message);
+                    String sqsName = "WorkerToManager-test-2";
+                    aws.createSqsQueue(sqsName);
+                    aws.sendMessageToSqs(aws.getQueueURL(sqsName), htmlFileName);
+                } 
             }
-            else{
-                String objectKey = message.body();
-                System.out.println(objectKey);
-                String localFilePath = "testout"; // Specify the local file path to save the downloaded file
-                String fromBucketName = "amj450-new-bucket-test-2";
-                aws.downloadFileFromS3(fromBucketName, objectKey, localFilePath);
-                List<Book> books = parseFile(localFilePath);
-                allReviewsHandle(books);
-                String htmlFileName = objectKey.substring(0,objectKey.length() - 3) + ".html";
-                makeHtmlSite(books, localFilePath, htmlFileName);
-                String toBucketName = "worker-s3-new-test-2";
-                aws.createBucketIfNotExists(toBucketName);
-                aws.uploadOutputFileToS3(htmlFileName, toBucketName);
-                aws.deleteMessageFromSQS("ManagerToWorkers-test-2", message);
-                String sqsName = "WorkerToManager-test-2";
-                aws.createSqsQueue(sqsName);
-                aws.sendMessageToSqs(aws.getQueueURL(sqsName), htmlFileName);
-            } 
         }
     }
 

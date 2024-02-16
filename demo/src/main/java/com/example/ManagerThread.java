@@ -25,14 +25,15 @@ public class ManagerThread implements Runnable {
     
         @Override
         public void run() {
+            String sqsName = "ManagerToApp-test-2";
+            aws.createSqsQueue(sqsName);
 
             while(terminate == false){
                 try{
                     Message message = aws.getMessageFromSqs("WorkerToManager-test-2");
                     if(message != null){
+                        aws.deleteMessageFromSqs(aws.getQueueURL("WorkerToManager-test-2"), message);
                         String objectKey = message.body();
-                        String sqsName = "ManagerToApp-test-2";
-                        aws.createSqsQueue(sqsName);
                         aws.sendMessageToSqs(aws.getQueueURL(sqsName), objectKey);
                     }
                 }catch(Exception e){}
