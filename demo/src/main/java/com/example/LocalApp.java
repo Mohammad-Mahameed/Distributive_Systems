@@ -44,7 +44,7 @@ public class LocalApp {
         //Init Manager
         String ec2Script = "#!/bin/bash\n" +
                             "sudo yum update -y\n" +
-                            "sudo yum install -y java-1.8.0-openjdk\n" +
+                            "sudo yum install -y java-11-openjdk-devel\n" +
                             "aws s3 cp s3://jar-bucket-assignment1-2024-test-2/target/demo-1.0-SNAPSHOT.jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar\n" +
                             "java -jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar com.example.Manager\n";
         System.out.println("Manager's script:\n" + ec2Script);
@@ -59,8 +59,6 @@ public class LocalApp {
         aws.createSqsQueue("AppToManager-test-2");
         String queueURL = aws.getQueueURL("AppToManager-test-2");
         aws.sendMessagesToManager(inputFilesPaths, queueURL, bucketName);
-        if(terminate.get() == true)
-            aws.sendMessageToSqs(queueURL, "terminate");
         
         //TODO: points 4-6
         int numOfFiles = outputFilesPaths.size();
@@ -74,12 +72,15 @@ public class LocalApp {
                     String objectKey = message.body();
                     System.out.println("message from Mangager to App" + objectKey);
                     String localFilePath = outputFilesPaths.get(index); 
-                    String fromBucketName = "worker-s3-new-test";
+                    String fromBucketName = "worker-s3-new-test-2";
                     aws.downloadFileFromS3(fromBucketName, objectKey, localFilePath);
-                    index ++;
+                    index++;
                 }
             }catch(Exception e){System.out.println("No msgs yet!");}   
         }
+        
+        if(terminate.get() == true)
+            aws.sendMessageToSqs(queueURL, "terminate");
     }
 
     

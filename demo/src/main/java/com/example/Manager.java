@@ -1,5 +1,7 @@
 package com.example;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -12,6 +14,7 @@ public class Manager {
     static int N = 1;                           //Workers' files ratio (reviews per worker)
     static int sqsCounter = 0;                  //Number of assigned jobs - in order to track the number of the required workers - resets after creating every new worker.
     static Boolean terminate = false;
+    static AtomicInteger sentMessages = new AtomicInteger(0);
 
     public static void main(String []args){
         Runnable thread1 = new ManagerThread("Deal with messages from Workers");
@@ -28,9 +31,9 @@ public class Manager {
         //Initiate at least one worker, in order to avoid missing jobs which contain less than N files
         String workerScript = "#!/bin/bash\n" +
                                 "sudo yum update -y\n" +
-                                "sudo yum install -y java-1.8.0-openjdk\n" +
+                                "sudo yum install -y java-11-openjdk-devel\n" +
                                 "aws s3 cp s3://jar-bucket-assignment1-2024-test-2/target/demo-1.0-SNAPSHOT.jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar\n" +
-                                "java -jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar com.example.Worker\n";   //FOR ABED: Check that Worker is correct worker's class name
+                                "java -jar /home/ec2-user/target/demo-1.0-SNAPSHOT.jar com.example.Worker\n";
         if(numberOfActiveWorkers < maxNumberOfWorkers)
             aws.createEC2(workerScript, "Worker" + ++numberOfActiveWorkers, 1);
 
@@ -57,6 +60,7 @@ public class Manager {
             else{   //A new job-handlement was requested - a file Path was received
                 String inputFilePath = msgBody;
                 aws.sendMessageToSqs(ManagerToWorkersSqsURL, inputFilePath);
+                sentMessages.incrementAndGet();
                 sqsCounter++;
                 
                 if(sqsCounter == N){
@@ -66,6 +70,10 @@ public class Manager {
                 }
             }
         }
+
+        try{
+            t1.join();
+        }catch(Exception e){}
     }
 
 

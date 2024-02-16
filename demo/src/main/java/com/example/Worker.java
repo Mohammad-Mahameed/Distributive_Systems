@@ -21,6 +21,7 @@ public class Worker {
 
     static sentimentAnalysisHandler sentimentAnalysisHandler = new sentimentAnalysisHandler();
     static namedEntityRecognitionHandler namedEntityRecognitionHandler = new namedEntityRecognitionHandler();
+    static String sqsName = "WorkerToManager-test-2";
 
     public static void main(String[] args) {
         AtomicBoolean termminated = new AtomicBoolean(false);
@@ -44,8 +45,6 @@ public class Worker {
                     aws.createBucketIfNotExists(toBucketName);
                     aws.uploadOutputFileToS3(htmlFileName, toBucketName);
                     aws.deleteMessageFromSqs(aws.getQueueURL("ManagerToWorkers-test-2"), message);
-                    String sqsName = "WorkerToManager-test-2";
-                    aws.createSqsQueue(sqsName);
                     aws.sendMessageToSqs(aws.getQueueURL(sqsName), htmlFileName);
                 } 
             }

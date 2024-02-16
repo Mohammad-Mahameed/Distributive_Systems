@@ -7,7 +7,6 @@ import java.util.jar.*;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.jar.*;
@@ -26,6 +25,7 @@ import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -58,7 +58,6 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.ec2.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
 import java.util.Base64;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
@@ -289,8 +288,14 @@ public String createEC2(String script, String tagName, int numberOfInstances) {
     //SQS
 
     public void createSqsQueue(String queueName) {
+        HashMap<QueueAttributeName, String> atrributesMap = new HashMap();
+        String visibilityTimeoutSeconds = "1200";
+
+        atrributesMap.put(QueueAttributeName.VISIBILITY_TIMEOUT, visibilityTimeoutSeconds);
+
         CreateQueueRequest createQueueRequest = CreateQueueRequest.builder()
                 .queueName(queueName)
+                .attributes(atrributesMap)
                 .build();
         sqs.createQueue(createQueueRequest);
     }
@@ -373,22 +378,31 @@ public String createEC2(String script, String tagName, int numberOfInstances) {
                     .key(objectKey)
                     .build();
             System.out.println(getObjectRequest.toString());
-            // Download the object
-            ResponseInputStream responseInputStream = s3.getObject(getObjectRequest);
-            System.out.println(responseInputStream.toString());
-            // Save the object to a local file
-            FileOutputStream fos = new FileOutputStream(localFilePath);
-            responseInputStream.transferTo(fos);
 
-            // Close streams
-            responseInputStream.close();
-            fos.close();
+             // Download the file from S3
+            ResponseInputStream<GetObjectResponse> objectInputStream = s3.getObject(getObjectRequest);
+
+             // Save the file locally
+            saveInputStreamToFile(objectInputStream, localFilePath);
 
             System.out.println("File downloaded successfully to: " + localFilePath);
-
         } catch (S3Exception | IOException e) {
             System.err.println("Error downloading file from S3: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    // Helper method to save InputStream to a local file
+    private static void saveInputStreamToFile(ResponseInputStream<GetObjectResponse> inputStream, String localFilePath) throws IOException {
+        try (FileOutputStream outputStream = new FileOutputStream(Paths.get(localFilePath).toFile())) {
+            // Read from input stream and write to output stream
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        } finally {
+            inputStream.close();
         }
     }
 

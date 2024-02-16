@@ -18,6 +18,7 @@ public class ManagerThread implements Runnable {
         private String threadName;
         final static AWS aws = AWS.getInstance();
         boolean terminate;
+        static int dealtMessages = 0;
     
         public ManagerThread(String name) {
             this.threadName = name;
@@ -27,11 +28,13 @@ public class ManagerThread implements Runnable {
         public void run() {
             String sqsName = "ManagerToApp-test-2";
             aws.createSqsQueue(sqsName);
+            aws.createSqsQueue("WorkerToManager-test-2");
 
-            while(terminate == false){
+            while(terminate == false || dealtMessages < Manager.sentMessages.get()){
                 try{
                     Message message = aws.getMessageFromSqs("WorkerToManager-test-2");
                     if(message != null){
+                        dealtMessages++;
                         aws.deleteMessageFromSqs(aws.getQueueURL("WorkerToManager-test-2"), message);
                         String objectKey = message.body();
                         aws.sendMessageToSqs(aws.getQueueURL(sqsName), objectKey);
