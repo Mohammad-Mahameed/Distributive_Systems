@@ -52,9 +52,14 @@ public class Manager {
                 synchronized(ManagerThread.class){
                     terminate();
                 }
-                /*
-                 * TODO: Implement the required implementation when serving more than a single Local Application.
-                 */
+                
+                //Wait until the LocalApp receives all of its responses
+                try{
+                    t1.join();
+                }catch(Exception e){}
+
+                //Terminate all workers
+                AWSResourceCleanup.terminateAllWorkers();
                 continue;   //exit
             }
             else{   //A new job-handlement was requested - a file Path was received
@@ -70,10 +75,6 @@ public class Manager {
                 }
             }
         }
-
-        try{
-            t1.join();
-        }catch(Exception e){}
     }
 
 

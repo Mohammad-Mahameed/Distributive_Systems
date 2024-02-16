@@ -79,8 +79,27 @@ public class LocalApp {
             }catch(Exception e){System.out.println("No msgs yet!");}   
         }
         
-        if(terminate.get() == true)
+        if(terminate.get() == true){
             aws.sendMessageToSqs(queueURL, "terminate");
+
+            boolean ManagerTerminated = false;
+            while(!ManagerTerminated){
+                DescribeInstancesRequest request = DescribeInstancesRequest.builder().build();
+                int runningInstanceCount = 0;
+
+                for (Reservation reservation : aws.ec2.describeInstances(request).reservations()) {
+                    for (Instance instance : reservation.instances()) {
+                        if (instance.state().nameAsString().equals("running")) {
+                            runningInstanceCount++;
+                        }
+                    }
+                }
+                if(runningInstanceCount == 1){   // All workers were terminated, only the manager remained running
+                    AWSResourceCleanup.terminateAllEC2instances();
+                    ManagerTerminated = true;
+                }
+            }
+        }
     }
 
     
